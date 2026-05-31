@@ -7,10 +7,9 @@ const dbPath = process.env.VERCEL === '1'
   : path.join(__dirname, 'crm.db');
 
 let _db = null;
-let _ready = false;
-let _queue = [];
 let _SQL = null;
-let _initPromise = null;
+let _ready = false;
+let _readyPromise = null;
 
 const TABLES = [
   `CREATE TABLE IF NOT EXISTS afiliados (
@@ -53,8 +52,7 @@ const TABLES = [
 function saveToDisk() {
   try {
     if (_db) {
-      const data = _db.export();
-      fs.writeFileSync(dbPath, Buffer.from(data));
+      fs.writeFileSync(dbPath, Buffer.from(_db.export()));
     }
   } catch (e) {
     console.error('[DB] Save error:', e.message);
@@ -82,26 +80,6 @@ function initDb() {
   saveToDisk();
 }
 
-function ensureDb(callback) {
-  if (_ready) { callback(); return; }
-
-  if (!_initPromise) {
-    _initPromise = require('sql.js/dist/sql-asm.js')().then(SQL => {
-      _SQL = SQL;
-      initDb();
-      _ready = true;
-      const q = _queue;
-      _queue = [];
-      q.forEach(fn => fn());
-    }).catch(err => {
-      console.error('[DB] Init failed:', err);
-      _initPromise = null;
-    });
-  }
-
-  _queue.push(callback);
-}
-
 function toObject(stmt) {
   const cols = stmt.getColumnNames();
   const vals = stmt.get();
@@ -111,65 +89,72 @@ function toObject(stmt) {
   return obj;
 }
 
-const db = {
-  run: function (sql, params, callback) {
-    if (typeof params === 'function') { callback = params; params = []; }
-    if (!params) params = [];
-    ensureDb(() => {
-      try {
+function exec(method, sql, params, callback) {
+  if (typeof params === 'function') { callback = params; params = []; }
+  if (!params) params = [];
+
+  function doExec() {
+    try {
+      if (method === 'run') {
         _db.run(sql, params);
         saveToDisk();
-        if (callback) callback.call({ lastID: 0, changes: _db.getRowsModified() }, null);
-      } catch (err) { if (callback) callback(err); }
-    });
-  },
-
-  get: function (sql, params, callback) {
-    if (typeof params === 'function') { callback = params; params = []; }
-    if (!params) params = [];
-    ensureDb(() => {
-      try {
+        callback.call({ lastID: 0, changes: _db.getRowsModified() }, null);
+      } else if (method === 'get') {
         const stmt = _db.prepare(sql);
         if (params.length > 0) stmt.bind(params);
         const rows = [];
         while (stmt.step()) rows.push(toObject(stmt));
         stmt.free();
         callback(null, rows.length > 0 ? rows[0] : null);
-      } catch (err) { callback(err); }
-    });
-  },
-
-  all: function (sql, params, callback) {
-    if (typeof params === 'function') { callback = params; params = []; }
-    if (!params) params = [];
-    ensureDb(() => {
-      try {
+      } else if (method === 'all') {
         const stmt = _db.prepare(sql);
         if (params.length > 0) stmt.bind(params);
         const rows = [];
         while (stmt.step()) rows.push(toObject(stmt));
         stmt.free();
         callback(null, rows);
-      } catch (err) { callback(err); }
-    });
-  },
+      }
+    } catch (err) { callback(err); }
+  }
 
+  if (_ready) { doExec(); return; }
+  _readyPromise.then(doExec).catch(err => {
+    console.error('[DB] Exec error:', err.message);
+    if (callback) callback(err);
+  });
+}
+
+_readyPromise = require('sql.js/dist/sql-asm.js')().then(SQL => {
+  _SQL = SQL;
+  initDb();
+  _ready = true;
+}).catch(err => {
+  console.error('[DB] Init failed:', err.message);
+  throw err;
+});
+
+const db = {
+  run: (...args) => exec('run', ...args),
+  get: (...args) => exec('get', ...args),
+  all: (...args) => exec('all', ...args),
   close: function (cb) {
     if (_ready) {
       try { saveToDisk(); if (_db) _db.close(); _db = null; _ready = false; } catch (e) {}
     }
     if (cb) cb();
   },
-
   serialize: function (cb) { if (cb) cb(); },
-
   reopen: function () {
     if (_db) _db.close();
     _db = null; _ready = false;
-    initDb();
-    _ready = true;
+    _readyPromise = require('sql.js/dist/sql-asm.js')().then(SQL => {
+      _SQL = SQL;
+      initDb();
+      _ready = true;
+    });
   }
 };
 
 module.exports = db;
 module.exports.dbPath = dbPath;
+module.exports.ready = _readyPromise;
