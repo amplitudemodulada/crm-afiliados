@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title><%= afiliado.nome %> - CRM Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial; background: #f5f5f5; }
+    .nav { background: #007bff; padding: 15px; display: flex; gap: 20px; }
+    .nav a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; }
+    .nav a:hover, .nav a.active { background: rgba(255,255,255,0.2); }
+    .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 20px; }
+    h1 { color: #333; margin-bottom: 10px; }
+    h2 { color: #555; margin-bottom: 15px; font-size: 18px; }
+    .info { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; }
+    form input, form select, form button { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; }
+    form button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; color: #333; }
+    .pago { color: green; font-weight: bold; }
+    .pendente { color: red; font-weight: bold; }
+    .credito { color: green; }
+    .debito { color: red; }
+    .btn-pagar { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+    .btn-editar { background: #ffc107; color: #000; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; margin-right: 3px; font-size: 13px; }
+    .btn-excluir { background: #dc3545; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
+    .edit-panel { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-top: 15px; display: none; }
+    .edit-panel h3 { color: #856404; margin-bottom: 12px; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/dashboard" class="<%= nav.dashboard %>">Dashboard</a>
+    <a href="/afiliados" class="<%= nav.afiliados %>">Afiliados</a>
+    <a href="/financeiro" class="<%= nav.financeiro %>">Financeiro</a>
+    <a href="/relatorios" class="<%= nav.relatorios %>">Relatórios</a>
+    <a href="/backup" class="<%= nav.backup %>">Backup</a>
+    <div style="margin-left: auto;">
+      <a href="/admin-logout" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.1);">Sair</a>
+    </div>
+    <a href="/logout" style="background: rgba(220,53,69,0.8);">Sair</a>
+  </div>
+
+  <div class="container">
+    <h1><%= afiliado.nome %></h1>
+
+    <div class="info">
+      <p><strong>Email:</strong> <%= afiliado.email %></p>
+      <p><strong>Telefone:</strong> <%= afiliado.telefone %></p>
+      <p><strong>CPF:</strong> <%= afiliado.cpf %></p>
+      <p><strong>Endereço:</strong> <%= afiliado.endereco || '-' %></p>
+      <p><strong>Cadastrado em:</strong> <%= afiliado.data_cadastro %></p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Mensalidades</h2>
+        <form method="POST" action="/mensalidades">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="afiliado_id" value="<%= afiliado.id %>">
+          <input name="valor" type="number" step="0.01" placeholder="Valor" required>
+          <input name="data_vencimento" type="date" required>
+          <button>Lançar Mensalidade</button>
+        </form>
+
+        <table>
+          <tr><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr>
+          <% mensalidades.forEach(m => { %>
+            <tr>
+              <td>R$ <%= m.valor %></td>
+              <td><%= m.data_vencimento %></td>
+              <td class="<%= m.status %>"><%= m.status %></td>
+              <td style="white-space:nowrap;">
+                <% if (m.status === 'pendente') { %>
+                  <button class="btn-editar"
+                    data-mens="<%= JSON.stringify({id: m.id, valor: m.valor, data: m.data_vencimento}) %>"
+                    onclick="editarMens(this)">Editar</button>
+                  <form method="POST" action="/mensalidades/<%= m.id %>/pagar" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="btn-pagar">Pagar</button>
+                  </form>
+                <% } else { %>
+                  <span style="font-size:12px;color:#666;"><%= m.data_pagamento %></span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </table>
+
+        <!-- Edição unitária -->
+        <div class="edit-panel" id="editMensPanel">
+          <h3>Editar Mensalidade</h3>
+          <form method="POST" id="formEditMens">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="redirect_to" value="/afiliados/<%= afiliado.id %>">
+            <input name="valor" id="editMensValor" type="number" step="0.01" placeholder="Valor (R$)" required>
+            <input name="data_vencimento" id="editMensData" type="date" required>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button type="submit" style="background:#007bff;">Salvar</button>
+              <button type="button" onclick="cancelarMens()" style="background:#6c757d;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;width:100%;">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Ajuste em massa -->
+        <div style="margin-top:20px;padding:15px;background:#e8f4fd;border-radius:8px;border:1px solid #bee5eb;">
+          <h3 style="color:#0c5460;font-size:14px;margin-bottom:10px;">Alterar dia de vencimento (pendentes)</h3>
+          <form method="POST" action="/mensalidades/bulk-date" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="afiliado_id" value="<%= afiliado.id %>">
+            <input type="hidden" name="redirect_to" value="/afiliados/<%= afiliado.id %>">
+            <div>
+              <label style="font-size:12px;color:#0c5460;display:block;margin-bottom:4px;">Novo dia (1–28)</label>
+              <input name="dia" type="number" min="1" max="28" placeholder="Ex: 10" required
+                style="width:100px;padding:8px;border:1px solid #bee5eb;border-radius:4px;">
+            </div>
+            <button type="submit" style="background:#17a2b8;color:white;border:none;padding:9px 16px;border-radius:4px;cursor:pointer;font-weight:bold;">
+              Aplicar a este afiliado
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Lançamentos Financeiros</h2>
+        <form method="POST" action="/lancamentos">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="afiliado_id" value="<%= afiliado.id %>">
+          <select name="tipo" required>
+            <option value="credito">Crédito</option>
+            <option value="debito">Débito</option>
+          </select>
+          <input name="valor" type="number" step="0.01" placeholder="Valor" required>
+          <input name="descricao" placeholder="Descrição">
+          <button>Lançar</button>
+        </form>
+
+        <table>
+          <tr><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Data</th><th>Ações</th></tr>
+          <% lancamentos.forEach(l => { %>
+            <tr>
+              <td class="<%= l.tipo %>"><%= l.tipo %></td>
+              <td class="<%= l.tipo %>">R$ <%= l.valor %></td>
+              <td><%= l.descricao || '-' %></td>
+              <td><%= l.data_lancamento %></td>
+              <td style="white-space:nowrap;">
+                <button class="btn-editar"
+                  data-lancamento="<%= JSON.stringify({id: l.id, tipo: l.tipo, valor: l.valor, descricao: l.descricao || ''}) %>"
+                  onclick="editarLanc(this)">Editar</button>
+                <form method="POST" action="/lancamentos/<%= l.id %>/delete" style="display:inline;" onsubmit="return confirm('Excluir este lançamento?')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn-excluir">Excluir</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </table>
+
+        <div class="edit-panel" id="editLancPanel">
+          <h3>Editar Lançamento</h3>
+          <form method="POST" id="formEditarLanc">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="afiliado_id" value="<%= afiliado.id %>">
+            <select name="tipo" id="editLancTipo" required>
+              <option value="credito">Crédito</option>
+              <option value="debito">Débito</option>
+            </select>
+            <input name="valor" id="editLancValor" type="number" step="0.01" placeholder="Valor" required>
+            <input name="descricao" id="editLancDescricao" placeholder="Descrição">
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button type="submit" style="background:#007bff;">Salvar</button>
+              <button type="button" onclick="cancelarLanc()" style="background:#6c757d;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;width:100%;">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function editarMens(btn) {
+      const d = JSON.parse(btn.dataset.mens);
+      const form = document.getElementById('formEditMens');
+      form.action = '/mensalidades/' + d.id + '/edit';
+      document.getElementById('editMensValor').value = d.valor;
+      document.getElementById('editMensData').value = d.data;
+      const panel = document.getElementById('editMensPanel');
+      panel.style.display = 'block';
+      panel.scrollIntoView({ behavior: 'smooth' });
+    }
+    function cancelarMens() {
+      document.getElementById('editMensPanel').style.display = 'none';
+    }
+    function editarLanc(btn) {
+      const d = JSON.parse(btn.dataset.lancamento);
+      const form = document.getElementById('formEditarLanc');
+      form.action = '/lancamentos/' + d.id + '/edit';
+      document.getElementById('editLancTipo').value = d.tipo;
+      document.getElementById('editLancValor').value = d.valor;
+      document.getElementById('editLancDescricao').value = d.descricao;
+      const panel = document.getElementById('editLancPanel');
+      panel.style.display = 'block';
+      panel.scrollIntoView({ behavior: 'smooth' });
+    }
+    function cancelarLanc() {
+      document.getElementById('editLancPanel').style.display = 'none';
+    }
+  </script>
+
+  <footer style="background: rgba(0,0,0,0.8); color: rgba(255,255,255,0.8); padding: 20px; text-align: center; margin-top: 40px;">
+    <p style="font-size: 13px; margin-bottom: 5px;"><strong>Direitos do Sistema:</strong> Desenvolvimento Msdos Informática</p>
+    <p style="font-size: 13px;">Suporte: <a href="mailto:suporte@msdosinformatica.com.br" style="color: #4facfe;">suporte@msdosinformatica.com.br</a></p>
+  </footer>
+</body>
+</html>

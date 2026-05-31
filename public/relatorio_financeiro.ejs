@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório Financeiro - CRM Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial; background: #f5f5f5; }
+    .nav { background: #007bff; padding: 15px; display: flex; gap: 20px; }
+    .nav a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; }
+    .nav a:hover, .nav a.active { background: rgba(255,255,255,0.2); }
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    h1 { color: #333; margin-bottom: 6px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+
+    /* Filtros */
+    .filtros { background: white; padding: 20px 25px; border-radius: 8px;
+               box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { padding: 8px 24px; border: 2px solid #007bff; border-radius: 20px;
+           text-decoration: none; color: #007bff; font-weight: bold; font-size: 14px; }
+    .tab.ativo { background: #007bff; color: white; }
+    .filtro-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .filtro-form label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+    .filtro-form input, .filtro-form select {
+      padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .btn-filtrar { background: #007bff; color: white; border: none; padding: 9px 20px;
+                   border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-print { background: #6c757d; color: white; border: none; padding: 9px 20px;
+                 border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: auto; }
+
+    /* Cards de resumo */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+             gap: 16px; margin-bottom: 24px; }
+    .card { background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #ccc; }
+    .card.verde  { border-color: #28a745; }
+    .card.vermelho { border-color: #dc3545; }
+    .card.amarelo { border-color: #ffc107; }
+    .card.azul   { border-color: #007bff; }
+    .card.roxo   { border-color: #6f42c1; }
+    .card h3 { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+    .card .valor { font-size: 26px; font-weight: bold; }
+    .card.verde   .valor { color: #28a745; }
+    .card.vermelho .valor { color: #dc3545; }
+    .card.amarelo  .valor { color: #856404; }
+    .card.azul     .valor { color: #007bff; }
+    .card.roxo     .valor { color: #6f42c1; }
+    .card .qtd { font-size: 12px; color: #888; margin-top: 4px; }
+
+    /* Tabelas */
+    .secao { background: white; padding: 25px; border-radius: 8px;
+             box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .secao h2 { color: #444; font-size: 16px; margin-bottom: 16px;
+                padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #f8f9fa; color: #555; font-weight: bold; }
+    tr:last-child td { border-bottom: none; }
+    .positivo { color: #28a745; font-weight: bold; }
+    .negativo { color: #dc3545; font-weight: bold; }
+    .neutro   { color: #555; }
+    .vazio    { color: #aaa; font-style: italic; text-align: center; padding: 20px; }
+    .badge-credito { background: #d4edda; color: #155724; padding: 2px 8px;
+                     border-radius: 10px; font-size: 12px; }
+    .badge-debito  { background: #f8d7da; color: #721c24; padding: 2px 8px;
+                     border-radius: 10px; font-size: 12px; }
+
+    @media print {
+      .nav, .filtros, .btn-print { display: none; }
+      body { background: white; }
+      .secao, .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/dashboard" class="<%= nav.dashboard %>">Dashboard</a>
+    <a href="/afiliados"  class="<%= nav.afiliados %>">Afiliados</a>
+    <a href="/financeiro" class="<%= nav.financeiro %>">Financeiro</a>
+    <a href="/relatorios" class="<%= nav.relatorios %>">Relatórios</a>
+    <a href="/backup" class="<%= nav.backup %>">Backup</a>
+    <div style="margin-left: auto;">
+      <a href="/admin-logout" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.1);">Sair</a>
+    </div>
+    <a href="/logout" style="background:rgba(220,53,69,0.8);">Sair</a>
+  </div>
+
+  <div class="container">
+    <h1>Relatório Financeiro por Período</h1>
+    <p class="subtitle">Período analisado: <strong><%= inicio %></strong> até <strong><%= fim %></strong></p>
+
+    <!-- Filtros -->
+    <div class="filtros">
+      <div class="tabs">
+        <a href="/relatorios/financeiro?periodo=mensal"  class="tab <%= periodo === 'mensal'  ? 'ativo' : '' %>">Mensal</a>
+        <a href="/relatorios/financeiro?periodo=semanal" class="tab <%= periodo === 'semanal' ? 'ativo' : '' %>">Semanal</a>
+      </div>
+
+      <% if (periodo === 'mensal') { %>
+        <form method="GET" action="/relatorios/financeiro" class="filtro-form">
+          <input type="hidden" name="periodo" value="mensal">
+          <div>
+            <label>Mês</label>
+            <select name="mes">
+              <% for (let m = 1; m <= 12; m++) { %>
+                <option value="<%= m %>" <%= m === mesAtual ? 'selected' : '' %>>
+                  <%= ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1] %>
+                </option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label>Ano</label>
+            <input type="number" name="ano" value="<%= anoAtual %>" min="2020" max="2099" style="width:90px;">
+          </div>
+          <button type="submit" class="btn-filtrar">Gerar</button>
+          <button type="button" class="btn-print" onclick="window.print()">Imprimir</button>
+        </form>
+      <% } else { %>
+        <form method="GET" action="/relatorios/financeiro" class="filtro-form">
+          <input type="hidden" name="periodo" value="semanal">
+          <div>
+            <label>De</label>
+            <input type="date" name="inicio" value="<%= inicio %>">
+          </div>
+          <div>
+            <label>Até</label>
+            <input type="date" name="fim" value="<%= fim %>">
+          </div>
+          <button type="submit" class="btn-filtrar">Gerar</button>
+          <button type="button" class="btn-print" onclick="window.print()">Imprimir</button>
+        </form>
+      <% } %>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div class="cards">
+      <div class="card verde">
+        <h3>Mensalidades Recebidas</h3>
+        <div class="valor">R$ <%= pagas.total.toFixed(2) %></div>
+        <div class="qtd"><%= pagas.qtd %> pagamento(s)</div>
+      </div>
+      <div class="card amarelo">
+        <h3>Mensalidades Pendentes</h3>
+        <div class="valor">R$ <%= pendentes.total.toFixed(2) %></div>
+        <div class="qtd"><%= pendentes.qtd %> mensalidade(s) no período</div>
+      </div>
+      <div class="card vermelho">
+        <h3>Total em Atraso</h3>
+        <div class="valor">R$ <%= atrasadas.total.toFixed(2) %></div>
+        <div class="qtd"><%= atrasadas.qtd %> vencida(s) no geral</div>
+      </div>
+      <div class="card azul">
+        <h3>Créditos (Lançamentos)</h3>
+        <div class="valor">R$ <%= creditos.total.toFixed(2) %></div>
+        <div class="qtd"><%= creditos.qtd %> lançamento(s)</div>
+      </div>
+      <div class="card vermelho">
+        <h3>Débitos (Lançamentos)</h3>
+        <div class="valor">R$ <%= debitos.total.toFixed(2) %></div>
+        <div class="qtd"><%= debitos.qtd %> lançamento(s)</div>
+      </div>
+      <div class="card roxo">
+        <h3>Saldo do Período</h3>
+        <div class="valor" style="color:<%= parseFloat(saldo) >= 0 ? '#6f42c1' : '#dc3545' %>">
+          R$ <%= saldo %>
+        </div>
+        <div class="qtd">recebido + créditos − débitos</div>
+      </div>
+    </div>
+
+    <!-- Mensalidades por afiliado -->
+    <div class="secao">
+      <h2>Mensalidades por Afiliado no Período</h2>
+      <% if (mensPerAfiliado.length === 0) { %>
+        <p class="vazio">Nenhuma movimentação no período.</p>
+      <% } else { %>
+        <table>
+          <tr>
+            <th>Afiliado</th>
+            <th>Pagas (qtd)</th>
+            <th>Total Pago</th>
+            <th>Pendentes (qtd)</th>
+            <th>Total Pendente</th>
+          </tr>
+          <% mensPerAfiliado.forEach(r => { %>
+            <tr>
+              <td><%= r.nome %></td>
+              <td class="neutro"><%= r.qtd_pago %></td>
+              <td class="positivo">R$ <%= r.pago.toFixed(2) %></td>
+              <td class="neutro"><%= r.qtd_pendente %></td>
+              <td class="<%= r.pendente > 0 ? 'negativo' : 'neutro' %>">R$ <%= r.pendente.toFixed(2) %></td>
+            </tr>
+          <% }) %>
+        </table>
+      <% } %>
+    </div>
+
+    <!-- Lançamentos por afiliado -->
+    <div class="secao">
+      <h2>Lançamentos Financeiros no Período</h2>
+      <% if (lancPerAfiliado.length === 0) { %>
+        <p class="vazio">Nenhum lançamento no período.</p>
+      <% } else { %>
+        <table>
+          <tr><th>Afiliado / Origem</th><th>Tipo</th><th>Qtd</th><th>Total</th></tr>
+          <% lancPerAfiliado.forEach(l => { %>
+            <tr>
+              <td><%= l.nome %></td>
+              <td><span class="badge-<%= l.tipo %>"><%= l.tipo %></span></td>
+              <td><%= l.qtd %></td>
+              <td class="<%= l.tipo === 'credito' ? 'positivo' : 'negativo' %>">R$ <%= l.total.toFixed(2) %></td>
+            </tr>
+          <% }) %>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+  <footer style="background:rgba(0,0,0,0.8);color:rgba(255,255,255,0.8);padding:20px;text-align:center;margin-top:40px;">
+    <p style="font-size:13px;margin-bottom:5px;"><strong>Direitos do Sistema:</strong> Desenvolvimento Msdos Informática</p>
+    <p style="font-size:13px;">Suporte: <a href="mailto:suporte@msdosinformatica.com.br" style="color:#4facfe;">suporte@msdosinformatica.com.br</a></p>
+  </footer>
+</body>
+</html>

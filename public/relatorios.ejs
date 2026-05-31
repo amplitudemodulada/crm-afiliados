@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Relatórios - CRM Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial; background: #f5f5f5; }
+    .nav { background: #007bff; padding: 15px; display: flex; gap: 20px; }
+    .nav a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; }
+    .nav a:hover, .nav a.active { background: rgba(255,255,255,0.2); }
+    .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 20px; }
+    h1 { color: #333; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; color: #333; font-weight: bold; }
+    .positive { color: green; font-weight: bold; }
+    .negative { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/dashboard" class="<%= nav.dashboard %>">Dashboard</a>
+    <a href="/afiliados" class="<%= nav.afiliados %>">Afiliados</a>
+    <a href="/financeiro" class="<%= nav.financeiro %>">Financeiro</a>
+    <a href="/relatorios" class="<%= nav.relatorios %>">Relatórios</a>
+    <a href="/backup" class="<%= nav.backup %>">Backup</a>
+    <div style="margin-left: auto;">
+      <a href="/admin-logout" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.1);">Sair</a>
+    </div>
+    <a href="/logout" style="background: rgba(220,53,69,0.8);">Sair</a>
+  </div>
+
+  <div class="container">
+    <h1>CRM Pro - Relatórios</h1>
+
+    <div style="margin-bottom: 20px; display:flex; gap:10px; align-items:center;">
+      <a href="/relatorios/financeiro" style="background:#28a745;color:white;padding:10px 20px;border-radius:4px;text-decoration:none;font-weight:bold;">
+        Relatório Financeiro (Semanal / Mensal)
+      </a>
+      <button onclick="window.print()" style="background:#007bff;color:white;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;">Imprimir</button>
+    </div>
+
+    <div class="card" id="relatorioContent">
+      <h2>Resumo por Afiliado</h2>
+      <table>
+        <tr>
+          <th>Afiliado</th>
+          <th>Total Mensalidades</th>
+          <th>Total Pago</th>
+          <th>Total Pendente</th>
+          <th>Créditos</th>
+          <th>Débitos</th>
+          <th>Saldo</th>
+        </tr>
+        <% relatorio.forEach(r => {
+          const saldo = ((r.creditos || 0) - (r.debitos || 0)).toFixed(2);
+        %>
+          <tr>
+            <td><%= r.nome %></td>
+            <td><%= r.total_mensalidades || 0 %></td>
+            <td class="positive">R$ <%= (r.total_pago || 0).toFixed(2) %></td>
+            <td class="negative">R$ <%= (r.total_pendente || 0).toFixed(2) %></td>
+            <td class="positive">R$ <%= (r.creditos || 0).toFixed(2) %></td>
+            <td class="negative">R$ <%= (r.debitos || 0).toFixed(2) %></td>
+            <td class="<%= saldo >= 0 ? 'positive' : 'negative' %>">R$ <%= saldo %></td>
+          </tr>
+        <% }) %>
+      </table>
+  </div>
+
+  <footer style="background: rgba(0,0,0,0.8); color: rgba(255,255,255,0.8); padding: 20px; text-align: center; margin-top: 40px;">
+    <p style="font-size: 13px; margin-bottom: 5px;"><strong>Direitos do Sistema:</strong> Desenvolvimento Msdos Informática</p>
+    <p style="font-size: 13px;">Suporte: <a href="mailto:suporte@msdosinformatica.com.br" style="color: #4facfe;">suporte@msdosinformatica.com.br</a></p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CRM Afiliados</title>
+  <style>
+    body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+    h1, h2 { color: #333; }
+    form { margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+    input, select, button { margin: 5px; padding: 8px; }
+    button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #007bff; color: white; }
+    .pago { color: green; font-weight: bold; }
+    .pendente { color: red; font-weight: bold; }
+    .credito { color: green; }
+    .debito { color: red; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CRM de Afiliados</h1>
+
+    <h2>Cadastrar Afiliado</h2>
+    <form method="POST" action="/afiliados">
+      <input name="nome" placeholder="Nome" required>
+      <input name="email" placeholder="Email">
+      <input name="telefone" placeholder="Telefone">
+      <input name="cpf" placeholder="CPF">
+      <button>Salvar</button>
+    </form>
+
+    <h2>Afiliados</h2>
+    <table>
+      <tr><th>Nome</th><th>Email</th><th>Telefone</th><th>Status</th></tr>
+      <% afiliados.forEach(a => { %>
+        <tr>
+          <td><%= a.nome %></td>
+          <td><%= a.email %></td>
+          <td><%= a.telefone %></td>
+          <td><%= a.status %></td>
+        </tr>
+      <% }) %>
+    </table>
+
+    <h2>Lançar Mensalidade</h2>
+    <form method="POST" action="/mensalidades">
+      <select name="afiliado_id" required>
+        <option value="">Selecione afiliado</option>
+        <% afiliados.forEach(a => { %>
+          <option value="<%= a.id %>"><%= a.nome %></option>
+        <% }) %>
+      </select>
+      <input name="valor" type="number" step="0.01" placeholder="Valor" required>
+      <input name="data_vencimento" type="date" required>
+      <button>Lançar</button>
+    </form>
+
+    <h2>Lançamento Financeiro</h2>
+    <form method="POST" action="/lancamentos">
+      <select name="afiliado_id">
+        <option value="">Geral</option>
+        <% afiliados.forEach(a => { %>
+          <option value="<%= a.id %>"><%= a.nome %></option>
+        <% }) %>
+      </select>
+      <select name="tipo" required>
+        <option value="credito">Crédito</option>
+        <option value="debito">Débito</option>
+      </select>
+      <input name="valor" type="number" step="0.01" placeholder="Valor" required>
+      <input name="descricao" placeholder="Descrição">
+      <button>Lançar</button>
+    </form>
+  </div>
+</body>
+</html>

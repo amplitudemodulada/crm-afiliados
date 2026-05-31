@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Backup - CRM Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+    .nav { background: rgba(0,123,255,0.9); padding: 15px; display: flex; gap: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    .nav a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; transition: all 0.3s; }
+    .nav a:hover, .nav a.active { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+    .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+    h1 { color: white; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    h2 { color: #333; margin-bottom: 15px; font-size: 18px; }
+    .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 25px; }
+    .btn { display: inline-block; padding: 12px 30px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; text-decoration: none; transition: all 0.3s; font-weight: bold; }
+    .btn-sm { padding: 5px 14px; font-size: 13px; border-radius: 5px; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+    .btn-success { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(40,167,69,0.4); }
+    .btn-danger { background: linear-gradient(135deg, #dc3545, #fd7e14); color: white; }
+    .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,53,69,0.4); }
+    .btn-warning { background: #ffc107; color: #333; }
+    .info { background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #333; font-size: 14px; }
+    .info strong { color: #1565C0; }
+    .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #856404; font-size: 14px; }
+    .success-msg { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #155724; font-size: 14px; }
+    .error-msg { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #721c24; font-size: 14px; }
+    .file-input-wrapper { position: relative; margin: 15px 0; }
+    .file-input-wrapper input[type=file] { width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 8px; cursor: pointer; }
+    .file-input-wrapper input[type=file]:hover { border-color: #667eea; }
+    .info-text { color: #666; font-size: 13px; margin-top: 10px; }
+    .db-size { display: inline-block; background: #e8f4fd; color: #1565C0; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-left: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #f8f9fa; color: #555; font-weight: bold; }
+    tr:last-child td { border-bottom: none; }
+    .vazio { color: #aaa; font-style: italic; text-align: center; padding: 20px; }
+    .acoes { white-space: nowrap; display: flex; gap: 6px; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/dashboard" class="<%= nav.dashboard %>">Dashboard</a>
+    <a href="/afiliados" class="<%= nav.afiliados %>">Afiliados</a>
+    <a href="/financeiro" class="<%= nav.financeiro %>">Financeiro</a>
+    <a href="/relatorios" class="<%= nav.relatorios %>">Relatórios</a>
+    <a href="/backup" class="<%= nav.backup %>">Backup</a>
+    <div style="margin-left: auto;">
+      <a href="/admin-logout" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.1);">Sair</a>
+    </div>
+    <a href="/logout" style="background: rgba(220,53,69,0.8);">Sair</a>
+  </div>
+
+  <div class="container">
+    <h1>Backup do Sistema</h1>
+
+    <% if (locals.success) { %>
+      <div class="success-msg"><%= success %></div>
+    <% } %>
+    <% if (locals.error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+
+    <!-- Download -->
+    <div class="card">
+      <h2>Download do Backup <span class="db-size">Banco atual: <%= tamanhoMB %> MB</span></h2>
+      <div class="info">
+        <strong>Importante:</strong> Faça backups regulares para evitar perda de dados.
+        O backup é salvo automaticamente no histórico e também baixado para o seu computador.
+      </div>
+      <a href="/backup/download" class="btn btn-primary">Baixar Backup (.db)</a>
+    </div>
+
+    <!-- Restaurar via upload -->
+    <div class="card">
+      <h2>Restaurar Backup (upload)</h2>
+      <div class="warning">
+        <strong>Atenção:</strong> Restaurar um backup substituirá TODOS os dados atuais
+        do sistema. Esta operação não pode ser desfeita.
+      </div>
+      <form method="POST" action="/backup/upload" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="file-input-wrapper">
+          <input type="file" name="backupfile" accept=".db,.sqlite" required>
+        </div>
+        <button type="submit" class="btn btn-danger"
+          onclick="return confirm('TEM CERTEZA? Todos os dados atuais serão substituídos pelo backup selecionado.')">
+          Restaurar Backup
+        </button>
+        <div class="info-text">Formatos aceitos: .db, .sqlite (arquivo de banco SQLite)</div>
+      </form>
+    </div>
+
+    <!-- Histórico de backups -->
+    <div class="card">
+      <h2>Histórico de Backups</h2>
+      <% if (!historico || historico.length === 0) { %>
+        <p class="vazio">Nenhum backup salvo ainda. Clique em "Baixar Backup" para criar o primeiro.</p>
+      <% } else { %>
+        <table>
+          <tr>
+            <th>Arquivo</th>
+            <th>Tamanho</th>
+            <th>Data</th>
+            <th>Ações</th>
+          </tr>
+          <% historico.forEach(b => { %>
+            <tr>
+              <td style="font-family:monospace;font-size:13px;"><%= b.nome %></td>
+              <td><%= b.tamanhoMB %> MB</td>
+              <td><%= new Date(b.data).toLocaleString('pt-BR') %></td>
+              <td>
+                <div class="acoes">
+                  <form method="POST" action="/backup/restore/<%= encodeURIComponent(b.nome) %>"
+                    onsubmit="return confirm('Restaurar o backup \'<%= b.nome %>\'? Os dados atuais serão substituídos.')">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-sm btn-warning">Restaurar</button>
+                  </form>
+                  <form method="POST" action="/backup/delete/<%= encodeURIComponent(b.nome) %>"
+                    onsubmit="return confirm('Excluir permanentemente este backup?')">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+  <footer style="background: rgba(0,0,0,0.8); color: rgba(255,255,255,0.8); padding: 20px; text-align: center; margin-top: 40px;">
+    <p style="font-size: 13px; margin-bottom: 5px;"><strong>Direitos do Sistema:</strong> Desenvolvimento Msdos Informática</p>
+    <p style="font-size: 13px;">Suporte: <a href="mailto:suporte@msdosinformatica.com.br" style="color: #4facfe;">suporte@msdosinformatica.com.br</a></p>
+  </footer>
+</body>
+</html>
