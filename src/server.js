@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const db = require('../database/db');
-const { dbPath, ready: dbReady } = db;
+const { dbPath } = db;
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -56,14 +56,6 @@ app.use(bodyParser.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../public'));
 app.use(express.static(path.join(__dirname, '../public')));
-
-// ==================== DB READY MIDDLEWARE ====================
-
-app.use((req, res, next) => {
-  dbReady.then(() => next()).catch(err => {
-    res.status(500).send('Database init failed: ' + err.message);
-  });
-});
 
 // ==================== RATE LIMITING ====================
 
