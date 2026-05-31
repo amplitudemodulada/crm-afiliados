@@ -9,14 +9,12 @@ const db = require('../database/db');
 const { dbPath } = db;
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 app.set('trust proxy', 1);
-
-// ==================== SEGURANÇA: HEADERS ====================
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -31,8 +29,6 @@ app.use(helmet({
   },
   hsts: process.env.NODE_ENV === 'production' ? undefined : false,
 }));
-
-// ==================== SESSÃO SEGURA ====================
 
 if (!process.env.SESSION_SECRET) {
   console.error('[SEGURANÇA] SESSION_SECRET não definido no .env — usando valor temporário inseguro!');
@@ -50,16 +46,12 @@ app.use(session({
   }
 }));
 
-// ==================== PARSERS ====================
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../public'));
 app.use(express.static(path.join(__dirname, '../public')));
-
-// ==================== RATE LIMITING ====================
 
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -68,8 +60,6 @@ const loginRateLimit = rateLimit({
   legacyHeaders: false,
   message: 'Muitas tentativas. Tente novamente em 15 minutos.'
 });
-
-// ==================== CSRF ====================
 
 function csrfMiddleware(req, res, next) {
   if (!req.session.csrfToken) {
@@ -84,7 +74,6 @@ const MULTIPART_PATHS = ['/backup/upload'];
 
 function csrfProtect(req, res, next) {
   if (req.method === 'GET' || PUBLIC_PATHS.includes(req.path) || MULTIPART_PATHS.includes(req.path)) return next();
-
   const token = req.body._csrf;
   if (!token || token !== req.session.csrfToken) {
     return res.status(403).send('Requisição inválida. Recarregue a página e tente novamente.');
@@ -95,8 +84,6 @@ function csrfProtect(req, res, next) {
 app.use(csrfMiddleware);
 app.use(csrfProtect);
 
-// ==================== AUDIT LOG ====================
-
 function audit(acao, detalhes, req) {
   const ip = req ? (req.ip || req.connection.remoteAddress) : 'sistema';
   const logLine = `[AUDIT] ${new Date().toISOString()} | ${acao} | ip=${ip} | ${JSON.stringify(detalhes)}`;
@@ -104,8 +91,6 @@ function audit(acao, detalhes, req) {
   db.run('INSERT INTO audit_log (acao, detalhes, ip) VALUES (?, ?, ?)',
     [acao, JSON.stringify(detalhes), ip]);
 }
-
-// ==================== VALIDAÇÃO ====================
 
 function sanitizeStr(val, maxLen = 255) {
   if (!val) return null;
@@ -117,11 +102,7 @@ function sanitizeFloat(val) {
   return isNaN(n) || n < 0 ? null : n;
 }
 
-// ==================== HELPERS ====================
-
 const getNav = (active) => ({ dashboard: '', afiliados: '', financeiro: '', relatorios: '', backup: '', [active]: 'active' });
-
-// ==================== ROTAS PÚBLICAS ====================
 
 app.get('/', (req, res) => {
   res.redirect('/admin-login');
@@ -149,8 +130,6 @@ app.get('/admin-logout', (req, res) => {
   req.session.destroy(() => res.redirect('/admin-login'));
 });
 
-// ==================== MIDDLEWARE DE AUTENTICAÇÃO ====================
-
 function checkAuth(req, res, next) {
   if (PUBLIC_PATHS.includes(req.path)) return next();
   if (req.session.isAdmin) return next();
@@ -158,8 +137,6 @@ function checkAuth(req, res, next) {
 }
 
 app.use(checkAuth);
-
-// ==================== ROTAS ====================
 
 app.get('/dashboard', (req, res) => {
   db.get('SELECT COUNT(*) as total FROM afiliados', [], (err, count) => {
@@ -220,7 +197,6 @@ app.get('/afiliados', (req, res) => {
 app.get('/afiliados/:id', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/afiliados');
-
   db.get('SELECT * FROM afiliados WHERE id = ?', [id], (err, afiliado) => {
     if (!afiliado) return res.redirect('/afiliados');
     db.all('SELECT * FROM mensalidades WHERE afiliado_id = ? ORDER BY data_vencimento DESC', [id], (err2, mensalidades) => {
@@ -234,7 +210,6 @@ app.get('/afiliados/:id', (req, res) => {
 app.post('/afiliados', (req, res) => {
   const nome = sanitizeStr(req.body.nome, 255);
   if (!nome) return res.redirect('/afiliados');
-
   const email = sanitizeStr(req.body.email, 255);
   const telefone = sanitizeStr(req.body.telefone, 20);
   const cpf = sanitizeStr(req.body.cpf, 14);
@@ -246,10 +221,7 @@ app.post('/afiliados', (req, res) => {
       if (err) return res.redirect('/afiliados');
       const afiliadoId = this.lastID;
       audit('AFILIADO_CRIAR', { nome }, req);
-
       if (!valorMensalidade) return res.redirect('/afiliados');
-
-      // Gera 12 mensalidades a partir do mês atual, vencendo todo dia 10
       const hoje = new Date();
       let inseridos = 0;
       for (let i = 0; i < 12; i++) {
@@ -270,16 +242,13 @@ app.post('/afiliados', (req, res) => {
 app.post('/afiliados/:id/edit', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/afiliados');
-
   const nome = sanitizeStr(req.body.nome, 255);
   if (!nome) return res.redirect('/afiliados');
-
   const email = sanitizeStr(req.body.email, 255);
   const telefone = sanitizeStr(req.body.telefone, 20);
   const cpf = sanitizeStr(req.body.cpf, 14);
   const endereco = sanitizeStr(req.body.endereco, 500);
   const status = ['ativo', 'inativo'].includes(req.body.status) ? req.body.status : 'ativo';
-
   db.run('UPDATE afiliados SET nome = ?, email = ?, telefone = ?, cpf = ?, endereco = ?, status = ? WHERE id = ?',
     [nome, email, telefone, cpf, endereco, status, id], function (err) {
       if (!err) audit('AFILIADO_EDITAR', { id, nome }, req);
@@ -290,7 +259,6 @@ app.post('/afiliados/:id/edit', (req, res) => {
 app.post('/afiliados/:id/delete', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/afiliados');
-
   db.run('DELETE FROM mensalidades WHERE afiliado_id = ?', [id], () => {
     db.run('DELETE FROM lancamentos WHERE afiliado_id = ?', [id], () => {
       db.run('DELETE FROM afiliados WHERE id = ?', [id], () => {
@@ -319,9 +287,7 @@ app.post('/mensalidades', (req, res) => {
   const afiliado_id = parseInt(req.body.afiliado_id);
   const valor = sanitizeFloat(req.body.valor);
   const data_vencimento = sanitizeStr(req.body.data_vencimento, 10);
-
   if (isNaN(afiliado_id) || !valor || !data_vencimento) return res.redirect('/financeiro');
-
   db.run('INSERT INTO mensalidades (afiliado_id, valor, data_vencimento) VALUES (?, ?, ?)',
     [afiliado_id, valor, data_vencimento], function (err) {
       if (!err) audit('MENSALIDADE_CRIAR', { afiliado_id, valor }, req);
@@ -332,7 +298,6 @@ app.post('/mensalidades', (req, res) => {
 app.post('/mensalidades/:id/pagar', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/financeiro');
-
   db.run('UPDATE mensalidades SET status = "pago", data_pagamento = CURRENT_TIMESTAMP WHERE id = ?',
     [id], function (err) {
       if (!err) audit('MENSALIDADE_PAGAR', { id }, req);
@@ -343,13 +308,10 @@ app.post('/mensalidades/:id/pagar', (req, res) => {
 app.post('/mensalidades/:id/edit', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/financeiro');
-
   const valor = sanitizeFloat(req.body.valor);
   const data_vencimento = sanitizeStr(req.body.data_vencimento, 10);
   const redirect_to = sanitizeStr(req.body.redirect_to, 200) || '/financeiro';
-
   if (!valor || !data_vencimento) return res.redirect(redirect_to);
-
   db.run('UPDATE mensalidades SET valor = ?, data_vencimento = ? WHERE id = ?',
     [valor, data_vencimento, id], function (err) {
       if (!err) audit('MENSALIDADE_EDITAR', { id, valor, data_vencimento }, req);
@@ -361,11 +323,8 @@ app.post('/mensalidades/bulk-date', (req, res) => {
   const dia = parseInt(req.body.dia);
   const afiliado_id = req.body.afiliado_id ? parseInt(req.body.afiliado_id) : null;
   const redirect_to = sanitizeStr(req.body.redirect_to, 200) || '/financeiro';
-
   if (isNaN(dia) || dia < 1 || dia > 28) return res.redirect(redirect_to);
-
   const novaData = `strftime('%Y-%m-', data_vencimento) || printf('%02d', ${dia})`;
-
   if (afiliado_id && !isNaN(afiliado_id)) {
     db.run(`UPDATE mensalidades SET data_vencimento = ${novaData} WHERE status = 'pendente' AND afiliado_id = ?`,
       [afiliado_id], function (err) {
@@ -386,9 +345,7 @@ app.post('/lancamentos', (req, res) => {
   const tipo = ['credito', 'debito'].includes(req.body.tipo) ? req.body.tipo : null;
   const valor = sanitizeFloat(req.body.valor);
   const descricao = sanitizeStr(req.body.descricao, 500);
-
   if (!tipo || !valor) return res.redirect('/financeiro');
-
   db.run('INSERT INTO lancamentos (afiliado_id, tipo, valor, descricao) VALUES (?, ?, ?, ?)',
     [afiliado_id || null, tipo, valor, descricao], function (err) {
       if (!err) audit('LANCAMENTO_CRIAR', { tipo, valor }, req);
@@ -399,14 +356,11 @@ app.post('/lancamentos', (req, res) => {
 app.post('/lancamentos/:id/edit', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/financeiro');
-
   const afiliado_id = req.body.afiliado_id ? parseInt(req.body.afiliado_id) : null;
   const tipo = ['credito', 'debito'].includes(req.body.tipo) ? req.body.tipo : null;
   const valor = sanitizeFloat(req.body.valor);
   const descricao = sanitizeStr(req.body.descricao, 500);
-
   if (!tipo || !valor) return res.redirect('/financeiro');
-
   db.run('UPDATE lancamentos SET afiliado_id = ?, tipo = ?, valor = ?, descricao = ? WHERE id = ?',
     [afiliado_id || null, tipo, valor, descricao, id], function (err) {
       if (!err) audit('LANCAMENTO_EDITAR', { id, tipo, valor }, req);
@@ -417,7 +371,6 @@ app.post('/lancamentos/:id/edit', (req, res) => {
 app.post('/lancamentos/:id/delete', (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.redirect('/financeiro');
-
   db.run('DELETE FROM lancamentos WHERE id = ?', [id], function (err) {
     if (!err) audit('LANCAMENTO_DELETAR', { id }, req);
     res.redirect('/financeiro');
@@ -541,8 +494,11 @@ function isSQLiteFile(filePath) {
   }
 }
 
+const uploadDir = process.env.VERCEL === '1' ? path.join(os.tmpdir(), 'uploads') : path.join(__dirname, '../temp');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
 const upload = multer({
-  dest: path.join(__dirname, '../temp'),
+  dest: uploadDir,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -553,7 +509,7 @@ const upload = multer({
   }
 });
 
-const backupsDir = path.join(__dirname, '..', 'database', 'backups');
+const backupsDir = process.env.VERCEL === '1' ? path.join(os.tmpdir(), 'backups') : path.join(__dirname, '..', 'database', 'backups');
 if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
 
 function listarBackups() {
