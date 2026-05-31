@@ -14,6 +14,8 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 // ==================== SEGURANÇA: HEADERS ====================
 
 app.use(helmet({

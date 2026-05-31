@@ -1,13 +1,25 @@
-let loaded = false;
-let loadError = null;
-
+let app;
 try {
-  const app = require('../src/server');
-  loaded = true;
-  module.exports = app;
+  app = require('../src/server');
 } catch (err) {
-  loadError = { message: err.message, stack: err.stack, code: err.code };
-  module.exports = (req, res) => {
-    res.status(500).json({ error: 'require failed', details: loadError });
-  };
+  app = require('express')();
+  app.use('*', (req, res) => res.status(500).json({
+    error: 'Module load failed',
+    message: err.message,
+    stack: err.stack
+  }));
 }
+
+module.exports = (req, res) => {
+  try {
+    app(req, res);
+  } catch (err) {
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Unhandled exception',
+        message: err.message,
+        stack: err.stack
+      });
+    }
+  }
+};
