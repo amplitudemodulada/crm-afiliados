@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
@@ -34,16 +34,13 @@ if (!process.env.SESSION_SECRET) {
   console.error('[SEGURANÇA] SESSION_SECRET não definido no .env — usando valor temporário inseguro!');
 }
 
-app.use(session({
+app.use(cookieSession({
+  name: 'session',
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production'
-  }
+  maxAge: 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: process.env.NODE_ENV === 'production'
 }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -127,7 +124,8 @@ app.post('/admin-login', loginRateLimit, (req, res) => {
 
 app.get('/admin-logout', (req, res) => {
   audit('LOGOUT', {}, req);
-  req.session.destroy(() => res.redirect('/admin-login'));
+  req.session = null;
+  res.redirect('/admin-login');
 });
 
 function checkAuth(req, res, next) {
