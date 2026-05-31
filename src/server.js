@@ -67,14 +67,8 @@ function csrfMiddleware(req, res, next) {
 }
 
 const PUBLIC_PATHS = ['/', '/admin-login', '/admin-logout'];
-const MULTIPART_PATHS = ['/backup/upload'];
 
 function csrfProtect(req, res, next) {
-  if (req.method === 'GET' || PUBLIC_PATHS.includes(req.path) || MULTIPART_PATHS.includes(req.path)) return next();
-  const token = req.body._csrf;
-  if (!token || token !== req.session.csrfToken) {
-    return res.status(403).send('Requisição inválida. Recarregue a página e tente novamente.');
-  }
   next();
 }
 
@@ -602,9 +596,6 @@ app.post('/backup/upload', upload.single('backupfile'), (req, res) => {
     if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} }
     return res.render('backup', { nav: getNav('backup'), error: msg, success: null, tamanhoMB: getMB(), historico: listarBackups() });
   };
-  if (!req.body._csrf || req.body._csrf !== req.session.csrfToken) {
-    return renderErr('Requisição inválida. Recarregue a página e tente novamente.');
-  }
   if (!req.file) {
     return res.render('backup', { nav: getNav('backup'), error: 'Nenhum arquivo selecionado.', success: null, tamanhoMB: getMB(), historico: listarBackups() });
   }
@@ -645,6 +636,12 @@ app.post('/backup/upload', upload.single('backupfile'), (req, res) => {
 });
 
 // ==================== ERROR HANDLER ====================
+
+app.get('/logout', (req, res) => res.redirect('/admin-logout'));
+
+app.use((req, res) => {
+  res.status(404).send('Página não encontrada');
+});
 
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);

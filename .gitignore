@@ -6,3 +6,5 @@ database/*.backup
 temp/
 
 .vercel
+
+.env*.local
