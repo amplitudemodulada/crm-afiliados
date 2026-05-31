@@ -86,7 +86,7 @@ function ensureDb(callback) {
   if (_ready) { callback(); return; }
 
   if (!_initPromise) {
-    _initPromise = require('sql.js')().then(SQL => {
+    _initPromise = require('sql.js/dist/sql-asm.js')().then(SQL => {
       _SQL = SQL;
       initDb();
       _ready = true;

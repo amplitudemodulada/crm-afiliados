@@ -4,6 +4,5 @@ database/crm.db
 database/backups/
 database/*.backup
 temp/
-api/
 
 .vercel
