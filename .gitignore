@@ -5,3 +5,5 @@ database/backups/
 database/*.backup
 temp/
 api/
+
+.vercel
